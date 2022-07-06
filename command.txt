@@ -1,0 +1,5 @@
+# commands
+
+# lmg 学習 -batch_size 64
+python lmg_cc2ftr.py -train -train_data data/lmg/train.pkl -dictionary_data data/lmg/dict.pkl -batch_size 64
+
