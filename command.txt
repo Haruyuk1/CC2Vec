@@ -3,3 +3,11 @@
 # lmg 学習 -batch_size 64
 python lmg_cc2ftr.py -train -train_data data/lmg/train.pkl -dictionary_data data/lmg/dict.pkl -batch_size 64
 
+# lmg 特徴抽出 -pred_data data/lmg/train.pkl -load_model model/lmg/cc2ftr.pt
+python lmg_cc2ftr.py -predict -pred_data data/lmg/train.pkl -dictionary_data data/lmg/dict.pkl -load_model model/lmg/cc2ftr.pt -name train_extracted_feature.pkl
+
+# lmg 特徴抽出 -pred_data data/lmg/test.pkl -load_model model/lmg/cc2ftr.pt
+python lmg_cc2ftr.py -predict -pred_data data/lmg/test.pkl -dictionary_data data/lmg/dict.pkl -load_model model/lmg/cc2ftr.pt -name test_extracted_feature.pkl
+
+# lmg 評価
+python lmg_eval.py -train_data data/lmg/train.pkl -test_data data/lmg/test.pkl -train_cc2ftr_data train_extracted_feature.pkl -test_cc2ftr_data test_extracted_feature.pkl
