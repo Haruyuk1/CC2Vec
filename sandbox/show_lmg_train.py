@@ -55,13 +55,7 @@ if __name__ == '__main__':
     params = read_args_lmg().parse_args()    
     train_data = pickle.load(open(params.train_data, 'rb'))
     train_msg, train_diff = train_data[0], train_data[1]
-    dictionary = pickle.load(open(params.dictionary_data, 'rb'))        
-    train_pad_added_code, train_pad_removed_code = processing_data(code=train_diff, dictionary=dictionary, params=params)
-    dict_msg: dict
-    dict_code: dict 
-    dict_msg, dict_code = dictionary   
-    whatsthis = [k for k, v in dict_code.items() if v == 29659]
-    pprint(whatsthis)
-    pprint(train_pad_added_code[0])
-    pprint(train_pad_removed_code[0])
+    dictionary = pickle.load(open(params.dictionary_data, 'rb'))   
+    dict_msg, dict_code = dictionary       
+    
 
