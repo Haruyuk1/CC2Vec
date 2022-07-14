@@ -109,3 +109,6 @@ data/
 
 # CC2Vec snapshot
 snapshot/
+
+# repositories
+repos/
