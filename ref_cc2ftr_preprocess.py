@@ -112,7 +112,7 @@ def main():
 
     # dictionaryの構築
     bag_of_words = dict()
-    dictionary: dict() # str -> int(id)
+    dictionary: dict = dict() # str -> int(id)
     for changes in tqdm(codes, desc='dictionary construct'):
         for change in changes:
             for line in change['removed_code']:
