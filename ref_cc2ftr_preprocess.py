@@ -12,7 +12,8 @@ from tqdm import tqdm
 
 
 RE_COMMENT_PATTERN = re.compile(r'/\*(.*?)\*/', flags=re.DOTALL+re.MULTILINE)
-RE_TORKNIZE_PATTERN = re.compile(r'([\{\}\(\)\[\]\.,])')
+RE_HUNK_PATTERN = re.compile(r'@@.*?@@(.*?)[(@@)|$]', flags=re.DOTALL+re.MULTILINE+re.VERBOSE)
+RE_TORKNIZE_PATTERN = re.compile(r'([\{\}\(\)\[\]\.,";])')
 
 
 def read_args():
@@ -28,6 +29,9 @@ def read_args():
     parser.add_argument('-save', default='data/ref')
     parser.add_argument('-name_data', default='train.pkl')
     parser.add_argument('-name_dict', default='dict.pkl')
+    
+    # for debug
+    parser.add_argument('-debug', action='store_true', default=False)
 
     return parser
 
@@ -54,12 +58,13 @@ def excludeComment(text: str) -> str:
     
 
 def makeJavaChangeSet(commit: git.Commit):
-    changes: list[dict] = []
+    file_changes: list[list[dict]] = [] # for each file
     diff_index: git.DiffIndex = commit.diff(commit.parents[0], create_patch=True)
     for diff in diff_index:
-        change: dict = dict()
-        change['removed_code'] = []
-        change['added_code'] = []
+        hunk_changes: list[dict] = [] # for each hunk
+        hunk_change: dict = dict()
+        hunk_change['removed_code'] = []
+        hunk_change['added_code'] = []
         diff: git.Diff = diff
         if not isJavaChange(diff):
             continue
@@ -69,12 +74,18 @@ def makeJavaChangeSet(commit: git.Commit):
         diff_lines = diff_text.split('\n')
         for diff_line in diff_lines:
             if diff_line.startswith('-'):
-                change['removed_code'].append(torknizeJavaLine(diff_line[1:]))
+                hunk_change['removed_code'].append(torknizeJavaLine(diff_line[1:]))
             if diff_line.startswith('+'):
-                change['added_code'].append(torknizeJavaLine(diff_line[1:]))
-        changes.append(change)
-
-    return changes if changes else None
+                hunk_change['added_code'].append(torknizeJavaLine(diff_line[1:]))
+            if diff_line.startswith('@@'): # hunk separation
+                if hunk_change['removed_code'] or hunk_change['added_code']:
+                    hunk_changes.append(hunk_change)
+                    hunk_change = {'removed_code': [], 'added_code': []}
+        if hunk_change['removed_code'] or hunk_change['added_code']:
+            hunk_changes.append(hunk_change)
+        file_changes.append(hunk_changes)
+    
+    return file_changes if file_changes else None
 
 
 def main():
@@ -113,27 +124,33 @@ def main():
     # dictionaryの構築
     bag_of_words = dict()
     dictionary: dict = dict() # str -> int(id)
-    for changes in tqdm(codes, desc='dictionary construct'):
-        for change in changes:
-            for line in change['removed_code']:
-                for word in line.split(' '):
-                    if word in bag_of_words:
-                        bag_of_words[word] += 1
-                    else:
-                        bag_of_words[word] = 1
-            for line in change['added_code']:
-                for word in line.split(' '):
-                    if word in bag_of_words:
-                        bag_of_words[word] += 1
-                    else:
-                        bag_of_words[word] = 1
+    for file_changes in tqdm(codes, desc='dictionary construct'):
+        for hunk_changes in file_changes:
+            for hunk_change in hunk_changes:
+                for line in hunk_change['removed_code']:
+                    for word in line.split(' '):
+                        if word in bag_of_words:
+                            bag_of_words[word] += 1
+                        else:
+                            bag_of_words[word] = 1
+                for line in hunk_change['added_code']:
+                    for word in line.split(' '):
+                        if word in bag_of_words:
+                            bag_of_words[word] += 1
+                        else:
+                            bag_of_words[word] = 1
     for index, word in enumerate(bag_of_words, start=1):
         dictionary[word] = index
 
     dataset = (labels, codes)
     
-    with open(params.save + '/' + params.name_data, mode='w', encoding='utf-8') as f_data, \
-         open(params.save + '/' + params.name_dict, mode='w', encoding='utf-8') as f_dict:
+    if params.debug:
+        with open('data/sandbox/trial_dataset.json', mode='w', encoding='utf-8') as f_json:
+            json.dump(codes, f_json, indent='\t')
+        return
+
+    with open(params.save + '/' + params.name_data, mode='wb') as f_data, \
+         open(params.save + '/' + params.name_dict, mode='wb') as f_dict:
         pickle.dump(dataset, f_data)
         pickle.dump(dictionary, f_dict)
 
