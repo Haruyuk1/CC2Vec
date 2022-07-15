@@ -73,9 +73,9 @@ def makeJavaChangeSet(commit: git.Commit):
         # diff_text = excludeComment(diff_text) # 多分構文解析しないとコメントは弾けない
         diff_lines = diff_text.split('\n')
         for diff_line in diff_lines:
-            if diff_line.startswith('-'):
+            if diff_line.startswith('-') and diff_line[1:].strip():
                 hunk_change['removed_code'].append(torknizeJavaLine(diff_line[1:]))
-            if diff_line.startswith('+'):
+            if diff_line.startswith('+') and diff_line[1:].strip():
                 hunk_change['added_code'].append(torknizeJavaLine(diff_line[1:]))
             if diff_line.startswith('@@'): # hunk separation
                 if hunk_change['removed_code'] or hunk_change['added_code']:
