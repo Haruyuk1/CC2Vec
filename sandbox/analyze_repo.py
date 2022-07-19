@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import json
 import git
 import glob
@@ -5,8 +6,15 @@ from tqdm import tqdm
 
 
 def main():
+    parser = ArgumentParser()
+    parser.add_argument('--head', type=int)
+    params = parser.parse_args()
+
+
     repos_dir = "repos"
-    repos = glob.glob(repos_dir + '/*')[:3] # TODO all repos
+    repos = glob.glob(repos_dir + '/*')
+    if params.head:
+        repos = repos[:min(len(repos), params.head)]
     print(repos)
 
     def countJavaChange(commit: git.Commit):

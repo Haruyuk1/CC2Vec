@@ -15,6 +15,7 @@ RE_COMMENT_PATTERN = re.compile(r'/\*(.*?)\*/', flags=re.DOTALL+re.MULTILINE)
 RE_HUNK_PATTERN = re.compile(r'@@.*?@@(.*?)[(@@)|$]', flags=re.DOTALL+re.MULTILINE+re.VERBOSE)
 RE_TORKNIZE_PATTERN = re.compile(r'([\{\}\(\)\[\]\.,";])')
 
+NUM_SKIPPED = 0
 
 def read_args():
     parser = argparse.ArgumentParser()
@@ -69,7 +70,13 @@ def makeJavaChangeSet(commit: git.Commit):
         if not isJavaChange(diff):
             continue
 
-        diff_text = diff.diff.decode(defenc)
+        try:
+            diff_text = diff.diff.decode(defenc)
+        except Exception as e:
+            global NUM_SKIPPED
+            NUM_SKIPPED += 1
+            return None
+    
         # diff_text = excludeComment(diff_text) # 多分構文解析しないとコメントは弾けない
         diff_lines = diff_text.split('\n')
         for diff_line in diff_lines:
@@ -120,6 +127,9 @@ def main():
         data = makeJavaChangeSet(git_commit)
         if data:
             codes.append(data)
+
+    if NUM_SKIPPED:
+        print(f'{NUM_SKIPPED} commits were skipped because of exception.')
 
     # dictionaryの構築
     bag_of_words = dict()
