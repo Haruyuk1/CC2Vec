@@ -5,11 +5,17 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from ref_cc2ftr_model import HierachicalRNN
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, random_split
 from ref_utils import save
 
+
 def train_model(dataset, params):
-    dataloader = DataLoader(dataset=dataset, batch_size=params.batch_size, shuffle=True)
+    valid_size = int(len(dataset) * params.valid_ratio)
+    train_size = len(dataset) - valid_size
+    train_dataset, valid_dataset = random_split(dataset, [train_size, valid_size])
+    train_dataloader = DataLoader(dataset=train_dataset, batch_size=params.batch_size, shuffle=True, drop_last=True)
+    valid_dataloader = DataLoader(dataset=valid_dataset, batch_size=params.batch_size, shuffle=True, drop_last=True)
+
     params.cuda = (not params.no_cuda) and torch.cuda.is_available()
     del params.no_cuda
 
@@ -49,9 +55,11 @@ def train_model(dataset, params):
 
     # batches = batches[:10] # 謎のスライス jitの方ではあるけどなんであるんだ…？
     for epoch in range(1, params.num_epochs + 1):
+        # 学習
+        model.train()
         total_loss = 0
         TP, FP, TN, FN = 0, 0, 0, 0
-        for labels, removed_code, added_code in tqdm(dataloader):
+        for labels, removed_code, added_code in tqdm(train_dataloader):
             # debug
             if params.cuda:
                 labels = labels.cuda()
@@ -66,7 +74,7 @@ def train_model(dataset, params):
             labels = torch.cuda.FloatTensor(labels)
             optimizer.zero_grad()
             predict = model.forward(removed_code, added_code, state_hunk, state_sent, state_word)
-            tmp_TP, tmp_FP, tmp_TN, tmp_FN =  metrics(predict, labels)
+            tmp_TP, tmp_FP, tmp_TN, tmp_FN = metrics(predict, labels)
             TP, FP, TN, FN = TP+tmp_TP, FP+tmp_FP, TN+tmp_TN, FN+tmp_FN
             loss = criterion(predict, labels)
             loss.backward()
@@ -74,6 +82,32 @@ def train_model(dataset, params):
             optimizer.step()
 
         print('Training: Epoch %i / %i -- Total loss: %f' % (epoch, params.num_epochs, total_loss))                
-        print(f'\tmetrics TP:{TP}, FP:{FP}, TN:{TN}, FN:{FN}')
-        print(f'\taccuracy:{(TP+TN)/(TP+FP+TN+FN)}')
+        print(f'\ttrain metrics TP:{TP}, FP:{FP}, TN:{TN}, FN:{FN}')
+        print(f'\ttrain accuracy:{(TP+TN)/(TP+FP+TN+FN)}')
         save(model, params.save_dir, 'epoch', epoch)
+
+        # 検証
+        model.eval()
+        total_loss = 0
+        TP, FP, TN, FN = 0, 0, 0, 0
+        for labels, removed_code, added_code in valid_dataloader:
+            if params.cuda:
+                labels = labels.cuda()
+                removed_code = removed_code.cuda()
+                added_code = added_code.cuda()
+
+            # reset the hidden state of hierarchical attention model
+            state_word = model.init_hidden_word()
+            state_sent = model.init_hidden_sent()
+            state_hunk = model.init_hidden_hunk()
+
+            labels = torch.cuda.FloatTensor(labels)
+            predict = model.forward(removed_code, added_code, state_hunk, state_sent, state_word)
+            tmp_TP, tmp_FP, tmp_TN, tmp_FN = metrics(predict, labels)
+            TP, FP, TN, FN = TP+tmp_TP, FP+tmp_FP, TN+tmp_TN, FN+tmp_FN
+            loss = criterion(predict, labels)
+            total_loss += loss
+
+        print('Validation: Epoch %i / %i -- Total loss: %f' % (epoch, params.num_epochs, total_loss))                
+        print(f'\tvalid metrics TP:{TP}, FP:{FP}, TN:{TN}, FN:{FN}')
+        print(f'\tvalid accuracy:{(TP+TN)/(TP+FP+TN+FN)}')

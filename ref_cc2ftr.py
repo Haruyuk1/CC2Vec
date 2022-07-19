@@ -32,6 +32,7 @@ def read_args():
     parser.add_argument('--predict', action='store_true', help='predicting testing data')
 
     # Number of parameters for Attention model
+    parser.add_argument('-valid_ratio', type=float, default=0.1, help='the ratio of valid data')
     parser.add_argument('-embed_size', type=int, default=64, help='the dimension of embedding vector')
     parser.add_argument('-hidden_size', type=int, default=32, help='the number of nodes in hidden layers')
     parser.add_argument('-dropout_keep_prob', type=float, default=0.5, help='dropout for training PatchNet')
