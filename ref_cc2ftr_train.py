@@ -90,23 +90,24 @@ def train_model(dataset, params):
         model.eval()
         total_loss = 0
         TP, FP, TN, FN = 0, 0, 0, 0
-        for labels, removed_code, added_code in valid_dataloader:
-            if params.cuda:
-                labels = labels.cuda()
-                removed_code = removed_code.cuda()
-                added_code = added_code.cuda()
+        with torch.no_grad():
+            for labels, removed_code, added_code in valid_dataloader:
+                if params.cuda:
+                    labels = labels.cuda()
+                    removed_code = removed_code.cuda()
+                    added_code = added_code.cuda()
 
-            # reset the hidden state of hierarchical attention model
-            state_word = model.init_hidden_word()
-            state_sent = model.init_hidden_sent()
-            state_hunk = model.init_hidden_hunk()
+                # reset the hidden state of hierarchical attention model
+                state_word = model.init_hidden_word()
+                state_sent = model.init_hidden_sent()
+                state_hunk = model.init_hidden_hunk()
 
-            labels = torch.cuda.FloatTensor(labels)
-            predict = model.forward(removed_code, added_code, state_hunk, state_sent, state_word)
-            tmp_TP, tmp_FP, tmp_TN, tmp_FN = metrics(predict, labels)
-            TP, FP, TN, FN = TP+tmp_TP, FP+tmp_FP, TN+tmp_TN, FN+tmp_FN
-            loss = criterion(predict, labels)
-            total_loss += loss
+                labels = torch.cuda.FloatTensor(labels)
+                predict = model.forward(removed_code, added_code, state_hunk, state_sent, state_word)
+                tmp_TP, tmp_FP, tmp_TN, tmp_FN = metrics(predict, labels)
+                TP, FP, TN, FN = TP+tmp_TP, FP+tmp_FP, TN+tmp_TN, FN+tmp_FN
+                loss = criterion(predict, labels)
+                total_loss += loss
 
         print('Validation: Epoch %i / %i -- Total loss: %f' % (epoch, params.num_epochs, total_loss))                
         print(f'\tvalid metrics TP:{TP}, FP:{FP}, TN:{TN}, FN:{FN}')
