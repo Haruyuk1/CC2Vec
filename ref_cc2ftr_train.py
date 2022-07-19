@@ -26,7 +26,7 @@ def train_model(dataset, params):
     if torch.cuda.is_available():
         model = model.cuda()
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=params.l2_reg_lambda)
+    optimizer = torch.optim.Adam(model.parameters(), lr=params.learning_rate)
     criterion = nn.BCELoss()
 
     # for logging

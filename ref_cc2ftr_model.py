@@ -92,17 +92,17 @@ class HierachicalRNN(nn.Module):
         # Word Encoder
         self.wordRNN = WordRNN(self.vocab_size, self.embed_size, self.hidden_size)
         # Sentence Encoder
-        self.sentRNN = SentRNN(self.embed_size, self.hidden_size)
+        self.sentRNN = SentRNN(2 * self.hidden_size, self.hidden_size)
         # Hunk Encoder
-        self.hunkRNN = HunkRNN(self.embed_size, self.hidden_size)
+        self.hunkRNN = HunkRNN(2 * self.hidden_size, self.hidden_size)
 
         # standard neural network layer
         self.standard_nn_layer = nn.Linear(4 * self.hidden_size, self.hidden_size)
 
         # neural network tensor
-        self.W_nn_tensor_one = nn.Linear(2 * self.hidden_size, self.embed_size)
-        self.W_nn_tensor_two = nn.Linear(2 * self.hidden_size, self.embed_size)
-        self.V_nn_tensor = nn.Linear(2 * self.embed_size, 2)
+        self.W_nn_tensor_one = nn.Linear(2 * self.hidden_size, 2 * self.hidden_size)
+        self.W_nn_tensor_two = nn.Linear(2 * self.hidden_size, 2 * self.hidden_size)
+        self.V_nn_tensor = nn.Linear(4 * self.hidden_size, 2)
 
         # Hidden layers before putting to the output layer
         self.fc1 = nn.Linear(self.code_file * (5 * self.hidden_size + 4), 2 * self.hidden_size)
