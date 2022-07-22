@@ -13,7 +13,12 @@ from tqdm import tqdm
 
 RE_COMMENT_PATTERN = re.compile(r'/\*(.*?)\*/', flags=re.DOTALL+re.MULTILINE)
 RE_HUNK_PATTERN = re.compile(r'@@.*?@@(.*?)[(@@)|$]', flags=re.DOTALL+re.MULTILINE+re.VERBOSE)
-RE_TORKNIZE_PATTERN = re.compile(r'([\{\}\(\)\[\]\.,";])')
+RE_TORKNIZE_PATTERN = re.compile(
+    r'''[
+    \{\}\(\)\[\]<>
+    \+\-\*\/
+    =\.,";
+    ]''', flags=re.MULTILINE+re.VERBOSE)
 
 NUM_SKIPPED = 0
 

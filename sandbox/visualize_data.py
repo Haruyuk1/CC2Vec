@@ -1,18 +1,11 @@
+import pickle
+import sys
+
 from matplotlib import pyplot as plt
 
 
-
-
-
-
-
-
-
-import pickle
-
-
-def main():
-    with open('data/ref/train.pkl', mode='rb') as f_train:
+def main(file_path):
+    with open(file_path, mode='rb') as f_train:
         label, codes = pickle.load(f_train)
     
     word_dist = dict()
@@ -78,6 +71,11 @@ def main():
     ax3.bar(hunk_x, hunk_y)
     ax4.bar(file_x, file_y)
 
+    ax1.set_xlim([0, 50])
+    ax2.set_xlim([0, 50])
+    ax3.set_xlim([0, 25])
+    ax4.set_xlim([0, 50])
+
     ax1.set_title('word distribution in line')
     ax2.set_title('line distribution in hunk')
     ax3.set_title('hunk distribution in file')
@@ -90,4 +88,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1])
