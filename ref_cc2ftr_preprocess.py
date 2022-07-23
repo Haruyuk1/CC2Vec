@@ -3,6 +3,7 @@ import cProfile
 from difflib import unified_diff
 import pickle
 import json
+from posixpath import split
 from pydoc import describe
 import re
 from pprint import pprint
@@ -12,6 +13,7 @@ from git.compat import defenc
 from pkg_resources import parse_requirements
 from tqdm import tqdm
 import javalang
+from javalang import tokenizer
 
 
 RE_COMMENT_PATTERN = re.compile(r'/\*(.*?)\*/', flags=re.DOTALL+re.MULTILINE)
@@ -60,11 +62,28 @@ def isJavaChange(diff: git.Diff):
         return res
 
 
-def filterToken(tokens: 'list[javalang.tokenizer.JavaToken]'):
+def replaceToken(tokens: 'list[tokenizer.JavaToken]'):
+    type_should_be_replaced = \
+        (tokenizer.Literal, tokenizer.Integer, tokenizer.FloatingPoint)
+    def replaceIfLiteral(token: tokenizer.JavaToken):
+        if isinstance(token, type_should_be_replaced):
+            token.value = '<LITERAL>'
+        return token
+    return list(map(replaceIfLiteral, tokens))
 
 
-    return tokens
-
+def splitToken(tokens: 'list[tokenizer.JavaToken]'):
+    def splitIfIdentifier(token: tokenizer.JavaToken):
+        if not isinstance(token, tokenizer.Identifier):
+            return token
+        words = token.value
+        if '_' in words: # snake_case
+            token.value = ' '.join(words.split('_'))
+            return token
+        splitted = re.sub('([A-Z][a-z]+)', r' \1', re.sub('([A-Z]+)', r' \1', token.value)).split()
+        token.value = ' '.join(splitted)
+        return token
+    return list(map(splitIfIdentifier, tokens))
 
 def makeJavaChangeSet(commit: git.Commit):
     file_changes: list[list[dict]] = [] # for each file
@@ -99,7 +118,10 @@ def makeJavaChangeSet(commit: git.Commit):
             return None
 
         # トークンごとの処理
-        # TODO
+        a_blob_tokens = replaceToken(a_blob_tokens)
+        b_blob_tokens = replaceToken(b_blob_tokens)
+        a_blob_tokens = splitToken(a_blob_tokens)
+        b_blob_tokens = splitToken(b_blob_tokens)
 
         # hunkごとに処理    
         matches = re.findall(RE_HUNK_PATTERN, unified_diff)
