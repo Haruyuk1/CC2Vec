@@ -84,8 +84,8 @@ def makeJavaChangeSet(commit: git.Commit):
             NUM_SKIPPED += 1
             return None
 
-        b_blob_tokens = [] # b_blobの全トークン
         a_blob_tokens = [] # a_blobの全トークン
+        b_blob_tokens = [] # b_blobの全トークン
 
         try:
             if diff.b_blob:
@@ -105,8 +105,8 @@ def makeJavaChangeSet(commit: git.Commit):
         matches = re.findall(RE_HUNK_PATTERN, unified_diff)
 
         for match in matches:
-            b_index, b_range, a_index, a_range, diff_lines = match
-            b_index, a_index = int(b_index), int(a_index)
+            a_index, a_range, b_index, b_range, diff_lines = match
+            a_index, b_index = int(a_index), int(b_index)
             removed_line_indexes = [] # 削除された行
             added_line_indexes = [] # 追加された行
             hunk_change: dict = dict()
@@ -117,21 +117,21 @@ def makeJavaChangeSet(commit: git.Commit):
             for line in diff_lines.split('\n'):
                 line: str = line
                 if line.startswith('-'):
-                    removed_line_indexes.append(b_index)
-                    b_index += 1
+                    removed_line_indexes.append(a_index)
+                    a_index += 1
                 elif line.startswith('+'):
-                    added_line_indexes.append(a_index)
-                    a_index += 1
-                else:
+                    added_line_indexes.append(b_index)
                     b_index += 1
+                else:
                     a_index += 1
+                    b_index += 1
 
             for index in removed_line_indexes:
-                removed_tokens = [token.value for token in b_blob_tokens if token.position[0] == index]
+                removed_tokens = [token.value for token in a_blob_tokens if token.position[0] == index]
                 if removed_tokens:
                     hunk_change['removed_code'].append(' '.join(removed_tokens))
             for index in added_line_indexes:
-                added_tokens = [token.value for token in a_blob_tokens if token.position[0] == index]
+                added_tokens = [token.value for token in b_blob_tokens if token.position[0] == index]
                 if added_tokens:
                     hunk_change['added_code'].append(' '.join(added_tokens))
             
