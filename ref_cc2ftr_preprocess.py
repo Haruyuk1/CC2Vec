@@ -87,12 +87,16 @@ def makeJavaChangeSet(commit: git.Commit):
         b_blob_tokens = [] # b_blobの全トークン
         a_blob_tokens = [] # a_blobの全トークン
 
-        if diff.b_blob:
-            code = diff.b_blob.data_stream.read().decode('utf-8')
-            b_blob_tokens = list(javalang.tokenizer.tokenize(code))
-        if diff.a_blob:
-            code = diff.a_blob.data_stream.read().decode('utf-8')
-            a_blob_tokens = list(javalang.tokenizer.tokenize(code))
+        try:
+            if diff.b_blob:
+                code = diff.b_blob.data_stream.read().decode('utf-8')
+                b_blob_tokens = list(javalang.tokenizer.tokenize(code))
+            if diff.a_blob:
+                code = diff.a_blob.data_stream.read().decode('utf-8')
+                a_blob_tokens = list(javalang.tokenizer.tokenize(code))
+        except Exception as e:
+            NUM_SKIPPED += 1
+            return None
 
         # トークンごとの処理
         # TODO
@@ -108,17 +112,6 @@ def makeJavaChangeSet(commit: git.Commit):
             hunk_change: dict = dict()
             hunk_change['removed_code'] = []
             hunk_change['added_code'] = []
-
-            try:
-                if diff.b_blob:
-                    code = diff.b_blob.data_stream.read().decode('utf-8')
-                    b_blob_tokens = list(javalang.tokenizer.tokenize(code))
-                if diff.a_blob:
-                    code = diff.a_blob.data_stream.read().decode('utf-8')
-                    a_blob_tokens = list(javalang.tokenizer.tokenize(code))
-            except Exception as e:
-                NUM_SKIPPED += 1
-                return None
 
             # 変更行の抽出
             for line in diff_lines.split('\n'):
