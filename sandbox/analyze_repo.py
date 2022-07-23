@@ -8,6 +8,7 @@ from tqdm import tqdm
 def main():
     parser = ArgumentParser()
     parser.add_argument('--head', type=int)
+    parser.add_argument('-java_change_threshold', type=int, default=30)
     params = parser.parse_args()
 
 
@@ -65,7 +66,15 @@ def main():
         repo_dict['commits'] = commits
         all_commits.append(repo_dict)
 
-    with open('data/sandbox/all_commits.json', mode='w', encoding='utf-8') as f_all_commits:
+    # filtering
+    for repo_dict in all_commits:
+        repo_dict['commits'] = list(filter(lambda commit: commit['java_change'] <= params.java_change_threshold, repo_dict['commits']))
+
+    save_name = 'all_commits'
+    if params.head:
+        save_name = f'head{params.head}_commits.json'
+
+    with open(f'data/sandbox/{save_name}', mode='w', encoding='utf-8') as f_all_commits:
         json.dump(all_commits, f_all_commits, indent="\t")
             
     return
