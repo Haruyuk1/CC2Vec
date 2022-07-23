@@ -214,8 +214,6 @@ def main():
 
     dataset = (labels, codes)
     
-    return # for sandboxing
-
     if params.debug:
         with open('data/sandbox/trial_dataset.json', mode='w', encoding='utf-8') as f_json:
             json.dump(codes, f_json, indent='\t')
@@ -230,5 +228,4 @@ def main():
 
 
 if __name__ == "__main__":
-    cProfile.run('main()', filename='main.prof')
-    # main()
+    main()
