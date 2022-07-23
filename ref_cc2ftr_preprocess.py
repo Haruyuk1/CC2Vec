@@ -1,4 +1,5 @@
 import argparse
+import cProfile
 from difflib import unified_diff
 import pickle
 import json
@@ -185,6 +186,7 @@ def main():
     if NUM_SKIPPED:
         print(f'{NUM_SKIPPED} commits were skipped because of exception.')
 
+    # 例外が発生したコミットを除去
     tmp_labels, tmp_codes = [], []
     for label, code in zip(labels, codes):
         if code == None:
@@ -235,4 +237,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    cProfile.run('main()', filename='main.prof')
+    # main()
