@@ -2,6 +2,9 @@ import argparse
 import json
 import pickle
 import re
+from concurrent.futures import ProcessPoolExecutor
+import multiprocessing as mp
+mp.set_start_method('spawn', force=True)
 
 import git
 import javalang
@@ -77,9 +80,11 @@ def splitToken(tokens: 'list[tokenizer.JavaToken]'):
         return token
     return list(map(splitIfIdentifier, tokens))
 
-def makeJavaChangeSet(commit: git.Commit):
+def makeJavaChangeSet(commit, local_repo):
+    repo: git.Repo = git.Repo(local_repo)
+    git_commit: git.Commit = repo.commit(commit['sha1'])
     file_changes: list[list[dict]] = [] # for each file
-    diff_index: git.DiffIndex = commit.diff(commit.parents[0], create_patch=True)
+    diff_index: git.DiffIndex = git_commit.diff(git_commit.parents[0], create_patch=True)
     
     # ファイルごとの処理
     for diff in diff_index:
@@ -164,31 +169,22 @@ def main():
     with open(params.data, mode='r', encoding='utf-8') as f_data:
         labeled_commits = json.load(f_data)
 
-    # repositoryのsetを抽出
-    local_repos = set()
-    for commit in labeled_commits['commits']:
-        github_repo = commit['repository']
-        local_repo = params.repos + '/' + re.search(r'//(.+)/(.+?).git', github_repo).groups()[-1]
-        if not local_repo in local_repos:
-            local_repos.add(local_repo)
-
-    # Repositoryオブジェクトの辞書
-    repo_dict = dict()
-    for local_repo in local_repos:
-        repo_dict[local_repo] = git.Repo(local_repo)
-
     # labelsの構築
     labels = [len(commit['refactorings']) > 0 for commit in labeled_commits['commits']]
 
     # codesの構築
     codes = []
-    for commit in tqdm(labeled_commits['commits'], desc='codes construct'):
+    local_repos = []
+    for commit in labeled_commits['commits']:
         github_repo = commit['repository']
         local_repo = params.repos + '/' + re.search(r'//(.+)/(.+?).git', github_repo).groups()[-1]
-        repo: git.Repo = repo_dict[local_repo]
-        git_commit: git.Commit = repo.commit(commit['sha1'])
-        data = makeJavaChangeSet(git_commit)
-        codes.append(data)
+        local_repos.append(local_repo)
+    # 並列化
+    with tqdm(total=len(labeled_commits['commits'])) as pbar:
+        with ProcessPoolExecutor(6) as executor:
+            codes = list(tqdm(executor.map(
+                makeJavaChangeSet, labeled_commits['commits'], local_repos
+                ), desc='code construct', total=len(labeled_commits['commits'])))
 
     if NUM_SKIPPED:
         print(f'{NUM_SKIPPED} commits were skipped because of exception.')
