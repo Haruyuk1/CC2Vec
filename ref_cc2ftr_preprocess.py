@@ -39,6 +39,9 @@ def read_args():
     parser.add_argument('-save', default='data/ref')
     parser.add_argument('-name_data', default='train.pkl')
     parser.add_argument('-name_dict', default='dict.pkl')
+
+    # parallel option
+    parser.add_argument('-max_workers', type=int, default=6)
     
     # for debug
     parser.add_argument('-debug', action='store_true', default=False)
@@ -181,7 +184,7 @@ def main():
         local_repos.append(local_repo)
     # 並列化
     with tqdm(total=len(labeled_commits['commits'])) as pbar:
-        with ProcessPoolExecutor(6) as executor:
+        with ProcessPoolExecutor(params.max_workers) as executor:
             codes = list(tqdm(executor.map(
                 makeJavaChangeSet, labeled_commits['commits'], local_repos
                 ), desc='code construct', total=len(labeled_commits['commits'])))
