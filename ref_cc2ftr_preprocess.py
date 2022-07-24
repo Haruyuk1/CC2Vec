@@ -1,20 +1,12 @@
 import argparse
-import cProfile
-from difflib import unified_diff
-import pickle
 import json
-from posixpath import split
-from pydoc import describe
+import pickle
 import re
-from pprint import pprint
 
 import git
-from git.compat import defenc
-from pkg_resources import parse_requirements
-from tqdm import tqdm
 import javalang
 from javalang import tokenizer
-
+from tqdm import tqdm
 
 RE_COMMENT_PATTERN = re.compile(r'/\*(.*?)\*/', flags=re.DOTALL+re.MULTILINE)
 RE_HUNK_PATTERN = re.compile(r'''
