@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import pickle
 import re
 from concurrent.futures import ProcessPoolExecutor
@@ -24,13 +25,13 @@ RE_TORKNIZE_PATTERN = re.compile(
     =\.,";
     ]''', flags=re.MULTILINE+re.VERBOSE)
 
-NUM_SKIPPED = 0
-
 def read_args():
     parser = argparse.ArgumentParser()
 
     # labeled_all_commits
-    parser.add_argument('-data')
+    parser.add_argument('--data')
+    # oracle
+    parser.add_argument('--oracle')
     
     # repository directory
     parser.add_argument('-repos', default='repos')
@@ -39,6 +40,7 @@ def read_args():
     parser.add_argument('-save', default='data/ref')
     parser.add_argument('-name_data', default='train.pkl')
     parser.add_argument('-name_dict', default='dict.pkl')
+    parser.add_argument('-name_oracle', default='oracle.pkl')
 
     # parallel option
     parser.add_argument('-max_workers', type=int, default=6)
@@ -84,8 +86,14 @@ def splitToken(tokens: 'list[tokenizer.JavaToken]'):
     return list(map(splitIfIdentifier, tokens))
 
 def makeJavaChangeSet(commit, local_repo):
-    repo: git.Repo = git.Repo(local_repo)
-    git_commit: git.Commit = repo.commit(commit['sha1'])
+    try:
+        repo: git.Repo = git.Repo(local_repo)
+        git_commit: git.Commit = repo.commit(commit['sha1'])
+    except Exception as e:
+        print(e)
+        return None
+
+
     file_changes: list[list[dict]] = [] # for each file
     diff_index: git.DiffIndex = git_commit.diff(git_commit.parents[0], create_patch=True)
     
@@ -99,8 +107,7 @@ def makeJavaChangeSet(commit, local_repo):
         try:
             unified_diff = diff.diff.decode('utf-8')
         except Exception as e:
-            global NUM_SKIPPED
-            NUM_SKIPPED += 1
+            print(e)
             return None
 
         a_blob_tokens = [] # a_blobの全トークン
@@ -114,7 +121,7 @@ def makeJavaChangeSet(commit, local_repo):
                 code = diff.a_blob.data_stream.read().decode('utf-8')
                 a_blob_tokens = list(javalang.tokenizer.tokenize(code))
         except Exception as e:
-            NUM_SKIPPED += 1
+            print(f'{local_repo}:', e)
             return None
 
         # トークンごとの処理
@@ -166,9 +173,7 @@ def makeJavaChangeSet(commit, local_repo):
     return file_changes if file_changes else None
 
 
-def main():
-    params = read_args().parse_args()
-
+def makeDataset(params):
     with open(params.data, mode='r', encoding='utf-8') as f_data:
         labeled_commits = json.load(f_data)
 
@@ -188,9 +193,6 @@ def main():
             codes = list(tqdm(executor.map(
                 makeJavaChangeSet, labeled_commits['commits'], local_repos
                 ), desc='code construct', total=len(labeled_commits['commits'])))
-
-    if NUM_SKIPPED:
-        print(f'{NUM_SKIPPED} commits were skipped because of exception.')
 
     # 例外が発生したコミットを除去
     tmp_labels, tmp_codes = [], []
@@ -238,6 +240,56 @@ def main():
         pickle.dump(dictionary, f_dict)
 
     return
+
+
+def makeOracleDataset(params):
+    oracle_path: str = params.oracle
+    with open(oracle_path, mode='r', encoding='utf-8') as f_oracle:
+        oracle_commits = json.load(f_oracle)
+
+    # codesの構築
+    codes = []
+    local_repos = []
+    for commit in oracle_commits:
+        repo_name = commit['repository'].split('/')[-1].replace('.git', '')
+        local_repo = os.path.join(params.repos, repo_name)
+        local_repos.append(local_repo)
+    # 並列化
+    with ProcessPoolExecutor(params.max_workers) as executor:
+        codes = list(tqdm(executor.map(
+            makeJavaChangeSet, oracle_commits, local_repos,
+            ), desc='oracle code construct', total=len(oracle_commits)))
+    
+    # 例外が発生したコミットを除去
+    tmp_codes = []
+    for code in codes:
+        if code == None:
+            continue
+        tmp_codes.append(code)
+    codes = tmp_codes
+    labels = [True] * len(codes) # oracleは全てTrue
+    
+    assert len(codes) == len(labels)
+
+    dataset = (labels, codes)
+
+    if params.debug:
+        with open('data/sandbox/debug_oracle.json', mode='w', encoding='utf-8') as f_debug_oracle:
+            json.dump(codes, f_debug_oracle, indent='\t')
+        return
+    
+    with open(os.path.join(params.save, params.name_oracle), mode='wb') as f_data:
+        pickle.dump(dataset, f_data)
+
+    return
+
+
+def main():
+    params = read_args().parse_args()
+    if params.data:
+        makeDataset(params)
+    if params.oracle:
+        makeOracleDataset(params)
 
 
 if __name__ == "__main__":
