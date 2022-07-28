@@ -25,7 +25,7 @@ class WordRNN(nn.Module):
         word_annotation = self.wordattn(out_state)
         word_annotation = F.relu(word_annotation)
         attn = F.softmax(self.attn_combine(word_annotation), dim=1)
-        sent = torch.bmm(out_state_t, attn).squeeze()
+        sent = torch.bmm(out_state_t, attn).squeeze(2)
         return sent, hid_state
 
 
@@ -47,7 +47,7 @@ class SentRNN(nn.Module):
         sent_annotation = self.sentattn(out_state)
         sent_annotation = F.relu(sent_annotation)
         attn = F.softmax(self.attn_combine(sent_annotation), dim=1)
-        hunk = torch.bmm(out_state_t, attn).squeeze()
+        hunk = torch.bmm(out_state_t, attn).squeeze(2)
         return hunk, hid_state
 
 
@@ -69,7 +69,7 @@ class HunkRNN(nn.Module):
         hunk_annotation = self.hunkattn(out_state)
         hunk_annotation = F.relu(hunk_annotation)
         attn = F.softmax(self.attn_combine(hunk_annotation), dim=1)
-        hunks = torch.bmm(out_state_t, attn).squeeze()
+        hunks = torch.bmm(out_state_t, attn).squeeze(2)
         return hunks, hid_state
 
 
@@ -154,7 +154,7 @@ class HierachicalRNN(nn.Module):
         out = self.fc1(x_diff_code)
         out = F.relu(out)
         out = self.fc2(out)
-        out = self.sigmoid(out).squeeze()
+        out = self.sigmoid(out).squeeze(1)
         return out
 
     def subtraction(self, added_code, removed_code):

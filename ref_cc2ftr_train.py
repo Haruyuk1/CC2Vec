@@ -6,7 +6,7 @@ import torch.nn as nn
 from tqdm import tqdm
 from ref_cc2ftr_model import HierachicalRNN
 from torch.utils.data import DataLoader, random_split
-from ref_utils import save
+from ref_utils import metrics, save
 
 
 def train_model(dataset, params):
@@ -37,21 +37,6 @@ def train_model(dataset, params):
 
     # for logging
     train_size = len(dataset)
-    def metrics(predict, labels):
-        if predict.shape != labels.shape:
-            print('shape error in func:metrics')
-            return
-        def count(condition):
-            c = torch.where(condition,
-                            torch.ones(predict.shape).to(params.device),
-                            torch.zeros(predict.shape).to(params.device))
-            return int(torch.sum(c))
-        TP = count(torch.logical_and(predict >= 0.5, labels >= 0.5))
-        FP = count(torch.logical_and(predict >= 0.5, labels < 0.5))
-        TN = count(torch.logical_and(predict < 0.5, labels < 0.5))
-        FN = count(torch.logical_and(predict < 0.5, labels >= 0.5))
-        return (TP, FP, TN, FN)
-
 
     # batches = batches[:10] # 謎のスライス jitの方ではあるけどなんであるんだ…？
     for epoch in range(1, params.num_epochs + 1):
@@ -74,7 +59,7 @@ def train_model(dataset, params):
             labels = torch.cuda.FloatTensor(labels)
             optimizer.zero_grad()
             predict = model.forward(removed_code, added_code, state_hunk, state_sent, state_word)
-            tmp_TP, tmp_FP, tmp_TN, tmp_FN = metrics(predict, labels)
+            tmp_TP, tmp_FP, tmp_TN, tmp_FN = metrics(predict, labels, params.device)
             TP, FP, TN, FN = TP+tmp_TP, FP+tmp_FP, TN+tmp_TN, FN+tmp_FN
             loss = criterion(predict, labels)
             loss.backward()

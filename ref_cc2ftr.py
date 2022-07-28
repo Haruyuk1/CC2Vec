@@ -1,7 +1,8 @@
 import argparse
 import pickle
 import numpy as np
-from ref_utils import CodeDataset
+from ref_cc2ftr_eval import eval_model
+from ref_utils import CodeDataset, codeDatasetWithoutLabel
 from ref_cc2ftr_train import train_model
 
 def read_args():
@@ -15,8 +16,8 @@ def read_args():
     parser.add_argument('-dictionary_data', type=str, default='./data/ref/dict.pkl', help='the directory of our dicitonary data')
 
     # Predicting our data
-    parser.add_argument('-predict', action='store_true', help='extracting features')
-    parser.add_argument('-predict_data', type=str, help='the directory of our extracting data')
+    parser.add_argument('-eval', action='store_true', help='extracting features')
+    parser.add_argument('-eval_data', type=str, help='the directory of our extracting data')
     parser.add_argument('-name', type=str, help='name of our output file')
 
     # Predicting our data
@@ -71,12 +72,30 @@ if __name__ == '__main__':
         print('--------------------------------------------------------------------------------')
         exit()
     
-    elif params.predict is True:
-        data = pickle.load(open(params.predict_data, 'rb'))
-        ids, labels, msgs, codes = data 
+    elif params.eval is True:
+        eval_data = pickle.load(open(params.eval_data, 'rb'))
+        eval_labels, eval_codes = eval_data
+
+        if eval_labels:
+            labels = np.array([1 if eval_label else 0 for eval_label in eval_labels])
+        else:
+            labels = None
+        codes = eval_codes
 
         dictionary = pickle.load(open(params.dictionary_data, 'rb'))   
-        dict_msg, dict_code = dictionary  
+        dict_code = dictionary
+
+        max_settings = (params.code_file, params.code_hunk, params.code_line, params.code_length)
+        if labels is not None:
+            dataset = CodeDataset(codes, labels, dict_code, max_settings)
+        else:
+            dataset = codeDatasetWithoutLabel(codes, dict_code, max_settings)
+
+        params.batch_size = 1
+        params.vocab_code = len(dict_code)
+
+        eval_model(dataset=dataset, params=params)
+
 
         # TODO 
         # pad_msg = padding_message(data=msgs, max_length=params.msg_length)
