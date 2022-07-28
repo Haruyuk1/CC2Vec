@@ -112,3 +112,9 @@ snapshot/
 
 # repositories
 repos/
+
+# repositories (symbolic link)
+repos
+
+# for vscode intelligence 'pylance'
+pyrightconfig.json
